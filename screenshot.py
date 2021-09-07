@@ -5,6 +5,7 @@ import cv2 as cv
 import pyautogui
 import win32gui, win32ui, win32con, win32api
 from time import time, sleep
+from datetime import datetime  
 import dlib
 from pynput.keyboard import Key, Controller
 
@@ -30,16 +31,16 @@ sample_names = [
     TWO,
     THREE,
     FOUR,
-    FIVE,
-    SIX,
-    SEVEN,
-    EIGHT,
-    NINE,
-    
     SOLO,
-    MULTIPLE,
     BIG,
 ]
+#    FIVE,
+#    SIX,
+#    SEVEN,
+#    EIGHT,
+#    NINE,
+#    MULTIPLE,
+    
 
 #sample_names = [SPEAKER, TWO]
 
@@ -145,10 +146,20 @@ def get_zoom_view_classification(screenshot):
         # 0 is one, 1 is two, 8 is nine
         # 9 is big, 10 is solo, 11 is multiple, 12 is speaker
 
-def match_templating_zoom_screen(thresholded_grayed_screenshot):
+def match_templating_zoom_screen(screenshot):
     # https://www.youtube.com/watch?v=ffRYijPR8pk
 
     global sample_threses
+
+    # Convert screenshot to grayscale
+    gray = cv.cvtColor(screenshot, cv.COLOR_BGR2GRAY)
+    # after that, we doing thresholding on image
+    #_, thresh = cv.threshold(gray, 50, 255, cv.THRESH_BINARY_INV)
+    _, thresh = cv.threshold(gray, 30, 255, cv.THRESH_BINARY) # 30 is ok for gallery view of two or more
+    
+    #cv.imwrite("screenshot.png", thresh)
+
+    thresholded_grayed_screenshot = thresh
     
     match_results = []
     
@@ -164,8 +175,8 @@ def match_templating_zoom_screen(thresholded_grayed_screenshot):
     max_value = max(match_results)
     max_index = match_results.index(max_value)
     
-    print("match_results:", match_results)
-    print("max_index:", max_index)
+    #print("match_results:", match_results)
+    #print("max_index:", max_index)
 
     return max_index
         # 0 is one, 1 is two, 8 is nine
@@ -182,7 +193,7 @@ def match_templating_zoom_screen(thresholded_grayed_screenshot):
     locations = np.where(result <= threshold)
     # We can zip those up into a list of (x, y) position tuples
     locations = list(zip(*locations[::-1]))
-    print(locations)
+    #print(locations)
 
 
 def main():
@@ -240,25 +251,17 @@ def main():
                 
                 # Count the visible faces...assume one face per window
                 image = get_screenshot()
-                zoom_screen_classification_index = get_zoom_view_classification(image)
-                print("zoom_screen_classification_index:", zoom_screen_classification_index)
-                    
-                # This classification also works
-                #    # Convert screenshot to grayscale
-                #    gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
-                #    # after that, we doing thresholding on image
-                #    #_, thresh = cv.threshold(gray, 50, 255, cv.THRESH_BINARY_INV)
-                #    _, thresh = cv.threshold(gray, 30, 255, cv.THRESH_BINARY) # 30 is ok for gallery view of two or more
-                #    
-                #    cv.imwrite("screenshot.png", thresh)
-                #    match_templating_index = match_templating_zoom_screen(thresh)
-                #    
-                #    print("match_templating_index:", match_templating_index)
-                #    exit()
-                    
+                
+                #euclidean_classification = get_zoom_view_classification(image)
+                templating_classification = match_templating_zoom_screen(image)
+                
+                #print("euclidean_classification:", euclidean_classification)
+                #print("templating_classification:", templating_classification)
 
-                # Counter to count number of faces
-                face_count = zoom_screen_classification_index # The number represent a classification of Zoom screen.
+                
+                # The number represent a classification of Zoom screen.
+                face_count = templating_classification # Templating classification does better 
+                #print("Active layout:", sample_names[face_count])
                 
                 
                 #print("last_face_count:", last_face_count)
@@ -272,27 +275,35 @@ def main():
                 else:
                     # The face count changed...
                     print("Detected faces:", face_count)
-                    print("obs_window_name:", obs_window_name)
+                    #print("obs_window_name:", obs_window_name)
                     
-                    # Set OBS to foreground to send keystrokes to it.
-                    win32gui.SetForegroundWindow(obs_window_handle)
+                    dt_object = datetime.fromtimestamp(time())
+                    print("timestamp:", dt_object)
                     
-                    # Press a key depending on the Zoom Meeting window
-                    key = "o"
-                    keyboard.press(key)
-                    keyboard.release(key)
-                    #pyautogui.press("down")
-                    
-                    # Set back Zoom Meeting to foreground to count open cameras.
-                    # Press Alt + Tab
-                    
-                    pyautogui.keyDown("alt") # Holds down the alt key
-                    pyautogui.press("tab") # Presses the tab key once
-                    pyautogui.keyUp("alt") # Lets go of the alt key
-
-                    
-                    #win32gui.SetForegroundWindow(zoom_window_handle)
-                    
+                    if False: # Control Zoom
+                        # Set OBS to foreground to send keystrokes to it.
+                        delay(1)
+                        win32gui.SetForegroundWindow(obs_window_handle)
+                        
+                        # Press a key depending on the Zoom Meeting window
+                        key = "o"
+                        keyboard.press(key)
+                        keyboard.release(key)
+                        #pyautogui.press("down")
+                        
+                        # Set back Zoom Meeting to foreground to count open cameras.
+                        # Press Alt + Tab
+                        
+                        # Return to Zoom from OBS
+                        delay(1)
+                        pyautogui.keyDown("alt") # Holds down the alt key
+                        pyautogui.press("tab") # Presses the tab key once
+                        pyautogui.keyUp("alt") # Lets go of the alt key
+         
+                        #win32gui.SetForegroundWindow(zoom_window_handle) # not working
+                    # End if control Zoom
+                    else: # Do nothing in OBS, but just log on the terminal
+                        print("Match layout:", sample_names[face_count])
                     
                     # Update last_face_count
                     last_face_count = face_count
@@ -309,8 +320,8 @@ def main():
             #cv.imwrite("screenshot.png", image_enhanced)
             
             # debug the loop rate
-            print('FPS {}'.format(1 / (time() - loop_time)))
-            loop_time = time()
+            #print('FPS {}'.format(1 / (time() - loop_time)))
+            #loop_time = time()
             
             
             # press 'q' with the output window focused to exit.
@@ -319,7 +330,7 @@ def main():
                 cv.destroyAllWindows()
                 break
             
-            break
+            
 
     else:
         print("OBS not found.")
