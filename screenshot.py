@@ -229,19 +229,25 @@ def main():
         keyboard = Controller()
         
         while(True):
+            dt_object = datetime.fromtimestamp(time())
             if not is_zoom_meeting_active:
                 if not is_waiting_for_active_zoom_meeting_message_already_printed:
                     print("Waiting for Zoom Meeting to be the active window...")
                     is_waiting_for_active_zoom_meeting_message_already_printed = True
-            
+        
             # Get currently active window name
             active_window_name = win32gui.GetWindowText(win32gui.GetForegroundWindow())
             
             # If Zoom Meeting is the active window, meaning infront of the screen...
-            if not "Zoom Meeting" in active_window_name:
+            #if not "Zoom Meeting" in active_window_name: # Not the optimal condition
+                # because "Chrome - Charles Jayson Dadios's Zoom Meeting"
+                # still contains the string "Zoom Meeting"
+            # If the active window name doesn't start with "Zoom Meeting"
+            if not active_window_name.find("Zoom Meeting") == 0: # Use this insted
                 is_zoom_meeting_active = False
                 no_change_printed_once = False # reset no. 1
             else:
+                # If the active window name starts with "Zoom Meeting"
                 
                 is_zoom_meeting_active = True
                 is_waiting_for_active_zoom_meeting_message_already_printed = False
@@ -251,6 +257,7 @@ def main():
                 
                 # Count the visible faces...assume one face per window
                 image = get_screenshot()
+                cv.imwrite("screenshot.png", image)
                 
                 #euclidean_classification = get_zoom_view_classification(image)
                 templating_classification = match_templating_zoom_screen(image)
@@ -279,26 +286,52 @@ def main():
                     
                     dt_object = datetime.fromtimestamp(time())
                     print("timestamp:", dt_object)
-                    
-                    if False: # Control Zoom
+                       
+                    if True: # Control Zoom
                         # Set OBS to foreground to send keystrokes to it.
-                        delay(1)
+                        #delay(1)
                         win32gui.SetForegroundWindow(obs_window_handle)
                         
                         # Press a key depending on the Zoom Meeting window
-                        key = "o"
-                        keyboard.press(key)
-                        keyboard.release(key)
+                        
+                        if sample_names[face_count] == SOLO:
+                            pyautogui.press("s") # Screensharing with regular sized solo speaker
+                        elif sample_names[face_count] == MULTIPLE:
+                            pyautogui.press("s") # Screensharing with regular sized multiple speaker
+                        elif sample_names[face_count] == BIG:
+                            pyautogui.typewrite("sss") # Screensharing with big sized solo speaker
+                        elif sample_names[face_count] == SPEAKER:
+                            pyautogui.press("f") # Speaker view, the biggest solo screen
+                        elif sample_names[face_count] == ONE:
+                            pyautogui.press("1")
+                        elif sample_names[face_count] == TWO:
+                            pyautogui.press("2")
+                        elif sample_names[face_count] == THREE:
+                            pyautogui.press("3")
+                        elif sample_names[face_count] == FOUR:
+                            pyautogui.press("4")
+                        elif sample_names[face_count] == FIVE:
+                            pyautogui.press("5")
+                        elif sample_names[face_count] == SIX:
+                            pyautogui.press("6")
+                        elif sample_names[face_count] == SEVEN:
+                            pyautogui.press("7")
+                        elif sample_names[face_count] == EIGHT:
+                            pyautogui.press("8")
+                        elif sample_names[face_count] == NINE:
+                            pyautogui.press("9")
+                            
+                        
                         #pyautogui.press("down")
                         
                         # Set back Zoom Meeting to foreground to count open cameras.
                         # Press Alt + Tab
                         
-                        # Return to Zoom from OBS
-                        delay(1)
-                        pyautogui.keyDown("alt") # Holds down the alt key
-                        pyautogui.press("tab") # Presses the tab key once
-                        pyautogui.keyUp("alt") # Lets go of the alt key
+                        # Automatically return to Zoom from OBS
+                        #delay(2)
+                        #pyautogui.keyDown("alt") # Holds down the alt key
+                        #pyautogui.press("tab") # Presses the tab key once
+                        #pyautogui.keyUp("alt") # Lets go of the alt key
          
                         #win32gui.SetForegroundWindow(zoom_window_handle) # not working
                     # End if control Zoom
@@ -330,7 +363,7 @@ def main():
                 cv.destroyAllWindows()
                 break
             
-            
+        # End while not pressing Ctrl + C   
 
     else:
         print("OBS not found.")
